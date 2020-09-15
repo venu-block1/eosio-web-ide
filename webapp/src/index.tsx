@@ -13,12 +13,24 @@ interface PostData {
     user?: string;
     reply_to?: number;
     content?: string;
+};
+
+interface LikeData {
+    id?: number;
+    user?: string;
+    msg_id?: number;
     like?: number;
 };
 
 interface PostFormState {
     privateKey: string;
     data: PostData;
+    error: string;
+};
+
+interface LikeFormState {
+    privateKey: string;
+    data: LikeData;
     error: string;
 };
 
@@ -34,8 +46,7 @@ class PostForm extends React.Component<{}, PostFormState> {
                 id: 0,
                 user: 'bob',
                 reply_to: 0,
-                content: 'This is a test',
-                like: 0
+                content: 'This is a test'
             },
             error: '',
         };
@@ -109,6 +120,97 @@ class PostForm extends React.Component<{}, PostFormState> {
                             onChange={e => this.setData({ content: e.target.value })}
                         /></td>
                     </tr>
+                </tbody>
+            </table>
+            <br />
+            <button onClick={e => this.post()}>Post</button>
+            {this.state.error && <div>
+                <br />
+                Error:
+                <code><pre>{this.state.error}</pre></code>
+            </div>}
+        </div>;
+    }
+}
+
+class LikeForm extends React.Component<{}, LikeFormState> {
+    api: Api;
+
+    constructor(props: {}) {
+        super(props);
+        this.api = new Api({ rpc, signatureProvider: new JsSignatureProvider([]) });
+        this.state = {
+            privateKey: '5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3',
+            data: {
+                id: 0,
+                user: 'bob',
+                msg_id: 0,
+                like: 0
+            },
+            error: '',
+        };
+    }
+
+    setData(data: LikeData) {
+        this.setState({ data: { ...this.state.data, ...data } });
+    }
+
+    async like() {
+        try {
+            this.api.signatureProvider = new JsSignatureProvider([this.state.privateKey]);
+            const result = await this.api.transact(
+                {
+                    actions: [{
+                        account: 'talk',
+                        name: 'like',
+                        authorization: [{
+                            actor: this.state.data.user,
+                            permission: 'active',
+                        }],
+                        data: this.state.data,
+                    }]
+                }, {
+                    blocksBehind: 3,
+                    expireSeconds: 30,
+                });
+            console.log(result);
+            this.setState({ error: '' });
+        } catch (e) {
+            if (e.json)
+                this.setState({ error: JSON.stringify(e.json, null, 4) });
+            else
+                this.setState({ error: '' + e });
+        }
+    }
+
+    render() {
+        return <div>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Private Key</td>
+                        <td><input
+                            style={{ width: 500 }}
+                            value={this.state.privateKey}
+                            onChange={e => this.setState({ privateKey: e.target.value })}
+                        /></td>
+                    </tr>
+                    <tr>
+                        <td>User</td>
+                        <td><input
+                            style={{ width: 500 }}
+                            value={this.state.data.user}
+                            onChange={e => this.setData({ user: e.target.value })}
+                        /></td>
+                    </tr>
+                    <tr>
+                        <td>Message ID</td>
+                        <td><input
+                            style={{ width: 500 }}
+                            value={this.state.data.msg_id}
+                            onChange={e => this.setData({ msg_id: +e.target.value })}
+                        /></td>
+                    </tr>
                     <tr>
                         <td>Like</td>
                         <td><input
@@ -120,7 +222,7 @@ class PostForm extends React.Component<{}, PostFormState> {
                 </tbody>
             </table>
             <br />
-            <button onClick={e => this.post()}>Post</button>
+            <button onClick={e => this.like()}>Like</button>
             {this.state.error && <div>
                 <br />
                 Error:
@@ -177,6 +279,8 @@ class Messages extends React.Component<{}, { content: string }> {
 ReactDOM.render(
     <div>
         <PostForm />
+        <br />
+        <LikeForm />
         <br />
         Messages:
         <Messages />
